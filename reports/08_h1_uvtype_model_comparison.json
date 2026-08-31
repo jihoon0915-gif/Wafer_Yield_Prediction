@@ -1,0 +1,99 @@
+[
+  {
+    "model": "A. 나이브 (Lot 통제 없음)",
+    "note": "전체 32개 Lot 풀링, 교란 그대로",
+    "n": 1704,
+    "r2_or_pseudo": 0.0204,
+    "aic": 19016.2,
+    "uv_type_terms": [
+      {
+        "term": "C(UV_type, Treatment('G'))[T.H]",
+        "coef": 20.54,
+        "se": 3.709,
+        "p": 0.0
+      },
+      {
+        "term": "C(UV_type, Treatment('G'))[T.I]",
+        "coef": 2.385,
+        "se": 3.829,
+        "p": 0.5334
+      }
+    ]
+  },
+  {
+    "model": "B. OLS + Lot 고정효과(32개 전체)",
+    "note": "Lot을 더미로 통제, SE는 Lot 클러스터robust",
+    "n": 1704,
+    "r2_or_pseudo": 0.2037,
+    "aic": 18725.3,
+    "uv_type_terms": [
+      {
+        "term": "C(UV_type, Treatment('G'))[T.H]",
+        "coef": -2.941,
+        "se": 3.443,
+        "p": 0.3931
+      },
+      {
+        "term": "C(UV_type, Treatment('G'))[T.I]",
+        "coef": 4.794,
+        "se": 6.075,
+        "p": 0.4301
+      }
+    ]
+  },
+  {
+    "model": "C. OLS + Lot 고정효과(혼합 19개 Lot만)",
+    "note": "단일 UV_type Lot(13개) 제외 — 가장 깨끗한 식별",
+    "n": 1026,
+    "r2_or_pseudo": 0.0283,
+    "aic": 10795.9,
+    "uv_type_terms": [
+      {
+        "term": "C(UV_type, Treatment('G'))[T.H]",
+        "coef": -2.941,
+        "se": 3.482,
+        "p": 0.3984
+      },
+      {
+        "term": "C(UV_type, Treatment('G'))[T.I]",
+        "coef": 4.794,
+        "se": 6.144,
+        "p": 0.4353
+      }
+    ]
+  },
+  {
+    "model": "D. 혼합효과모형(Lot 랜덤절편)",
+    "note": "Lot 32개 전체를 부분풀링(partial pooling)으로 통제",
+    "n": 1704,
+    "r2_or_pseudo": null,
+    "aic": NaN,
+    "uv_type_terms": [
+      {
+        "term": "C(UV_type, Treatment('G'))[T.H]",
+        "coef": -0.339,
+        "se": 4.395,
+        "p": 0.9385
+      },
+      {
+        "term": "C(UV_type, Treatment('G'))[T.I]",
+        "coef": 4.364,
+        "se": 4.673,
+        "p": 0.3504
+      }
+    ]
+  },
+  {
+    "model": "E. LightGBM 분산분해 (5-fold CV, plain KFold)",
+    "note": "Lot_Num만 vs Lot_Num+UV_type 예측기여도 비교",
+    "n": 1704,
+    "cv_r2_lot_only_mean": 0.1485,
+    "cv_r2_lot_only_std": 0.1073,
+    "cv_r2_lot_uv_mean": 0.1382,
+    "cv_r2_lot_uv_std": 0.1157,
+    "delta_r2_from_uvtype": -0.0103,
+    "uv_type_permutation_importance_mean": 0.03755,
+    "uv_type_permutation_importance_std": 0.00414,
+    "lot_num_permutation_importance_mean": 0.44825
+  }
+]

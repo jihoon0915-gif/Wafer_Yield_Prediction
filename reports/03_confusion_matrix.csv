@@ -1,0 +1,9 @@
+true \ predicted,Center,Edge-Loc,Edge-Ring,Loc,Near-full,Random,Scratch,none
+Center,45,18,0,0,0,0,0,27
+Edge-Loc,4,262,0,22,0,18,0,209
+Edge-Ring,0,0,0,0,0,0,0,36
+Loc,0,18,0,88,0,0,0,173
+Near-full,0,0,0,0,0,0,0,36
+Random,0,24,0,0,0,44,0,31
+Scratch,0,18,0,0,0,0,36,9
+none,0,23,0,9,36,0,0,14204

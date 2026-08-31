@@ -1,0 +1,114 @@
+[
+  {
+    "model": "RandomForest (default, no tuning)",
+    "cv_train_score_mean": 0.9997479405534291,
+    "cv_val_score_mean": 0.6213630713193377,
+    "cv_val_score_std": 0.09428997027592183,
+    "overfit_gap": 0.3783848692340914,
+    "cv_val_mae_mean": 21.19750773884882,
+    "fit_seconds_mean": 9.45765472000203,
+    "predict_ms_per_1k_mean": 51.599031064472015,
+    "best_params": {},
+    "optuna_best_cv_r2": null,
+    "tune_seconds": 0.0,
+    "n_trials": 0
+  },
+  {
+    "model": "RandomForest (Optuna)",
+    "cv_train_score_mean": 0.9989206817223899,
+    "cv_val_score_mean": 0.6851172318157058,
+    "cv_val_score_std": 0.09980427322738677,
+    "overfit_gap": 0.3138034499066841,
+    "cv_val_mae_mean": 19.502752142163036,
+    "fit_seconds_mean": 6.721344119999412,
+    "predict_ms_per_1k_mean": 55.936303183815106,
+    "best_params": {
+      "n_estimators": 398,
+      "max_depth": 17,
+      "min_samples_leaf": 4,
+      "max_features": 0.5
+    },
+    "optuna_best_cv_r2": 0.6851172318157058,
+    "tune_seconds": 292.10062990000006,
+    "n_trials": 15
+  },
+  {
+    "model": "XGBoost (Optuna)",
+    "cv_train_score_mean": 0.9960160255432129,
+    "cv_val_score_mean": 0.6848512291908264,
+    "cv_val_score_std": 0.0994917527648591,
+    "overfit_gap": 0.3111647963523865,
+    "cv_val_mae_mean": 20.495754623413085,
+    "fit_seconds_mean": 1.640534540000226,
+    "predict_ms_per_1k_mean": 12.445514096839508,
+    "best_params": {
+      "n_estimators": 316,
+      "max_depth": 5,
+      "learning_rate": 0.08012737503998542,
+      "subsample": 0.6557975442608167,
+      "colsample_bytree": 0.7168578594140873,
+      "reg_lambda": 0.029204338471814112
+    },
+    "optuna_best_cv_r2": 0.6848512291908264,
+    "tune_seconds": 248.69246320000093,
+    "n_trials": 15
+  },
+  {
+    "model": "LightGBM (Optuna)",
+    "cv_train_score_mean": 0.9986613348137666,
+    "cv_val_score_mean": 0.6987363630398872,
+    "cv_val_score_std": 0.09512053682966982,
+    "overfit_gap": 0.29992497177387945,
+    "cv_val_mae_mean": 19.548374046493446,
+    "fit_seconds_mean": 3.470375960000092,
+    "predict_ms_per_1k_mean": 18.835604089147285,
+    "best_params": {
+      "n_estimators": 517,
+      "num_leaves": 66,
+      "learning_rate": 0.01855998084649059,
+      "subsample": 0.6733618039413735,
+      "colsample_bytree": 0.7216968971838151,
+      "reg_lambda": 0.12561043700013558
+    },
+    "optuna_best_cv_r2": 0.6987363630398872,
+    "tune_seconds": 396.80015339999954,
+    "n_trials": 15
+  },
+  {
+    "model": "CatBoost (Optuna)",
+    "cv_train_score_mean": 0.9946493860140582,
+    "cv_val_score_mean": 0.6866115817058956,
+    "cv_val_score_std": 0.10462444798768328,
+    "overfit_gap": 0.3080378043081625,
+    "cv_val_mae_mean": 20.373613030563867,
+    "fit_seconds_mean": 5.934035399999265,
+    "predict_ms_per_1k_mean": 6.0475021511441165,
+    "best_params": {
+      "iterations": 576,
+      "depth": 7,
+      "learning_rate": 0.0431646733732235,
+      "l2_leaf_reg": 1.1616568805333802
+    },
+    "optuna_best_cv_r2": 0.6866115817058956,
+    "tune_seconds": 362.1186258000016,
+    "n_trials": 15
+  },
+  {
+    "model": "MLP NeuralNetwork (Optuna, 15 trials)",
+    "cv_train_score_mean": 0.8260054773223391,
+    "cv_val_score_mean": 0.5638594864500147,
+    "cv_val_score_std": 0.08628213860380594,
+    "overfit_gap": 0.2621459908723244,
+    "cv_val_mae_mean": 28.309270140727158,
+    "fit_seconds_mean": 12.017834800000127,
+    "predict_ms_per_1k_mean": 8.051908030512738,
+    "best_params": {
+      "hidden_layer_sizes": "64",
+      "alpha": 0.03612316101220097,
+      "learning_rate_init": 0.0005054029522564674
+    },
+    "optuna_best_cv_r2": 0.5638594864500147,
+    "tune_seconds": 895.7133746000036,
+    "n_trials": 15
+  }
+]

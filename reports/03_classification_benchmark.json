@@ -1,0 +1,80 @@
+[
+  {
+    "model": "SMOTE+RandomForest (Optuna)",
+    "macro_f1": 0.46182698387621113,
+    "weighted_f1": 0.944645949189729,
+    "minority_avg_f1": 0.38803387451575416,
+    "none_f1": 0.9783787493994097,
+    "fit_seconds_mean": 1.8016291999992973,
+    "predict_ms_per_1k_mean": 0.033994881593216154,
+    "per_class_f1": {
+      "Center": 0.7142857142857143,
+      "Edge-Loc": 0.6506024096385542,
+      "Edge-Ring": 0.0,
+      "Loc": 0.37628865979381443,
+      "Near-full": 0.0,
+      "Random": 0.24778761061946902,
+      "Scratch": 0.7272727272727273,
+      "none": 0.9783787493994097
+    },
+    "best_params": {
+      "n_estimators": 254,
+      "max_depth": 17,
+      "min_samples_leaf": 1
+    },
+    "optuna_best_macro_f1": 0.46182698387621113
+  },
+  {
+    "model": "Cost-Sensitive LightGBM (Optuna)",
+    "macro_f1": 0.49250601696186685,
+    "weighted_f1": 0.9467861370241758,
+    "minority_avg_f1": 0.42290865454429294,
+    "none_f1": 0.9796875538848846,
+    "fit_seconds_mean": 1.9970543400006135,
+    "predict_ms_per_1k_mean": 0.016659229231865212,
+    "per_class_f1": {
+      "Center": 0.6474820143884892,
+      "Edge-Loc": 0.5968109339407744,
+      "Edge-Ring": 0.0,
+      "Loc": 0.44221105527638194,
+      "Near-full": 0.0,
+      "Random": 0.546583850931677,
+      "Scratch": 0.7272727272727273,
+      "none": 0.9796875538848846
+    },
+    "best_params": {
+      "n_estimators": 383,
+      "num_leaves": 18,
+      "learning_rate": 0.2708160864249968
+    },
+    "optuna_best_macro_f1": 0.49250601696186685
+  },
+  {
+    "model": "TabNet (Optuna, 6 trials)",
+    "macro_f1": 0.325316254290383,
+    "weighted_f1": 0.9204990919931865,
+    "minority_avg_f1": 0.2335164871324364,
+    "none_f1": 0.9679146243960093,
+    "fit_seconds_mean": 72.34296942000074,
+    "predict_ms_per_1k_mean": null,
+    "per_class_f1": {
+      "Center": 0.38961038961038963,
+      "Edge-Loc": 0.38716356107660455,
+      "Edge-Ring": 0.0,
+      "Loc": 0.2958579881656805,
+      "Near-full": 0.0,
+      "Random": 0.0,
+      "Scratch": 0.5619834710743802,
+      "none": 0.9679146243960093
+    },
+    "best_params": {
+      "n_d": 24,
+      "n_steps": 3,
+      "gamma": 1.2921446485352182,
+      "lr": 0.00963950939140342
+    },
+    "tune_seconds": 1575.2852990000029,
+    "optuna_best_macro_f1": 0.30892217072301364,
+    "n_trials": 6
+  }
+]
