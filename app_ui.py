@@ -154,9 +154,17 @@ def get_alert_history(limit: int = 15) -> dict:
 
 def send_slack_test() -> tuple[bool, str]:
     r = requests.post(f"{API_URL}/alerts/test", timeout=20)
-    if r.ok:
+    if not r.ok:
+        # 웹훅 미설정(409) 등 HTTPException 케이스 -- detail에 사유가 담겨 있음
+        return False, r.json().get("detail", r.text)
+    body = r.json()
+    if body.get("sent"):
         return True, "Slack 채널로 테스트 메시지를 전송했습니다."
-    return False, r.json().get("detail", r.text)
+    # HTTP 200이지만 실제 전송은 실패한 경우(webhook_not_configured 외 사유) --
+    # sent 필드를 안 보고 r.ok만 보면 이 케이스를 성공으로 오판하게 된다.
+    reason = body.get("reason", "unknown")
+    error = body.get("error", "")
+    return False, f"전송 실패({reason}): {error}" if error else f"전송 실패({reason})"
 
 
 # ---------------------------------------------------------------------
