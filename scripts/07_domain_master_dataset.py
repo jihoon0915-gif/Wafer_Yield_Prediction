@@ -6,7 +6,7 @@
 
 병합/그룹핑/웨이퍼맵 파싱은 이미 검증된 wafer.integrate/validate 모듈을 그대로
 재사용한다 — No_Die 1:1 inner join은 병합 순서와 무관하게 결과가 동일하므로,
-프롬프트에 명시된 순서(Oxidation→Photo_softbake→Photo_lithograpy→Etching→
+과제 지시 순서(Oxidation→Photo_softbake→Photo_lithograpy→Etching→
 Ion_Implantation→Inspect) 대신 기존에 9개 assertion으로 검증해둔 순서
 (wafer.config.PROCESS_ORDER)를 그대로 쓴다.
 
@@ -194,7 +194,7 @@ def write_summary(merged, checks, sentinel_counts, chamber_stats, flag_vs_target
     lines.append(
         "- Key: `No_Die`(Lot_Num+Wafer_Num+공정순번을 이미 내포한 다이 식별자) 기준 1:1 inner join.\n"
         "- 6개 CSV 전부 병합 전/후 15,390행 유지(불일치 시 즉시 예외 — 이번 실행에서도 통과).\n"
-        "- 병합 순서는 결과에 영향 없음(1:1 inner join)이라, 프롬프트 지정 순서 대신 이미 9개 "
+        "- 병합 순서는 결과에 영향 없음(1:1 inner join)이라, 과제 지시 순서 대신 이미 9개 "
         "assertion으로 회귀검증해 둔 기존 PROCESS_ORDER(Photo_softbake→Photo_lithograpy→"
         "Etching→Ion_Implantation→Oxidation→Inspect)를 그대로 사용."
     )

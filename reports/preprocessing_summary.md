@@ -6,7 +6,7 @@
 
 - Key: `No_Die`(Lot_Num+Wafer_Num+공정순번을 이미 내포한 다이 식별자) 기준 1:1 inner join.
 - 6개 CSV 전부 병합 전/후 15,390행 유지(불일치 시 즉시 예외 — 이번 실행에서도 통과).
-- 병합 순서는 결과에 영향 없음(1:1 inner join)이라, 프롬프트 지정 순서 대신 이미 9개 assertion으로 회귀검증해 둔 기존 PROCESS_ORDER(Photo_softbake→Photo_lithograpy→Etching→Ion_Implantation→Oxidation→Inspect)를 그대로 사용.
+- 병합 순서는 결과에 영향 없음(1:1 inner join)이라, 과제 지시 순서 대신 이미 9개 assertion으로 회귀검증해 둔 기존 PROCESS_ORDER(Photo_softbake→Photo_lithograpy→Etching→Ion_Implantation→Oxidation→Inspect)를 그대로 사용.
 
 **회귀 검증 (validate.run_all_checks) 결과**
 
