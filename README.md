@@ -11,8 +11,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?logo=fastapi&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.62-FF4B4B?logo=streamlit&logoColor=white)
 
-<!-- TODO: Streamlit Community Cloud 배포 후 아래 URL을 실제 주소로 교체 -->
-**라이브 데모** — https://YOUR-APP-NAME.streamlit.app
+**라이브 데모** — https://wafer-yield-prediction.streamlit.app/
 
 ---
 
