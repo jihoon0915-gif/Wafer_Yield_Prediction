@@ -143,6 +143,12 @@ def raw_value_lookup(row_df: pd.DataFrame, feat: str):
     r = row_df.iloc[0]
     if feat in r.index:
         val = r[feat]
+        if isinstance(val, (bool, np.bool_)):
+            # sentinel_flag 계열 컬럼 -- numpy.bool_은 int/float 서브클래스가 아니라
+            # 아래 분기를 그냥 타면 float(bool)로 잘못 바뀌고, 그렇다고 그대로
+            # 반환하면 FastAPI의 jsonable_encoder가 numpy.bool_을 직렬화하지 못해
+            # 500 에러가 난다(XGBoost의 oxidation_sentinel_flag에서 실제 발생).
+            return bool(val)
         if isinstance(val, (int, float, np.floating, np.integer)):
             # NaN은 JSON 규격상 표현 불가(Starlette JSONResponse는 allow_nan=False) —
             # 계측 결측을 null로 내보낸다.
