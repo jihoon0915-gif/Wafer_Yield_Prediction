@@ -1,5 +1,9 @@
 # 웨이퍼 수율 예측 및 이상 탐지 시스템
 
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://wafer-yield-prediction.streamlit.app/)
+
+### 🚀 [라이브 데모 바로가기 → wafer-yield-prediction.streamlit.app](https://wafer-yield-prediction.streamlit.app/)
+
 반도체 6개 공정 데이터를 통합해 웨이퍼 결함 다이 수를 예측하고, 예측 근거를 SHAP으로 분해해
 공정 엔지니어가 바로 조치할 수 있는 형태로 제공하는 엔드투엔드 시스템입니다.
 분석에서 그치지 않고 REST API · 인터랙티브 대시보드 · Slack 실시간 경보까지 구현했습니다.
@@ -10,8 +14,6 @@
 ![SHAP](https://img.shields.io/badge/SHAP-0.51-1f77b4)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?logo=fastapi&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.62-FF4B4B?logo=streamlit&logoColor=white)
-
-**라이브 데모** — https://wafer-yield-prediction.streamlit.app/
 
 ---
 
