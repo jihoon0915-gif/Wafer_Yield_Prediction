@@ -294,6 +294,16 @@ sr = meta["feature_ranges"]
 slack_status = alert_config["slack"]
 thresholds = alert_config["thresholds"]
 
+# embedded 모드(Streamlit Cloud 단일 프로세스)에서는 API_URL이 컨테이너 내부
+# 127.0.0.1을 가리켜 방문자 브라우저에서는 열리지 않는다 — 이 경우 링크를
+# 아예 숨기고, 로컬 실행(외부에서도 같은 머신이라 실제로 열리는 경우)이거나
+# 별도 호스트에 배포한 경우에만 노출한다.
+api_docs_link = (
+    f'<a href="{API_URL}/docs" target="_blank">API 문서 (OpenAPI)</a>'
+    if api_mode in ("separate-process", "external")
+    else '<span class="note">API 문서 — 로컬 실행 시 `/docs`에서 확인 가능</span>'
+)
+
 st.markdown(
     f"""
     <div class="hero">
@@ -305,7 +315,7 @@ st.markdown(
       </p>
       <div class="links">
         <a href="{REPO_URL}" target="_blank">GitHub 저장소</a>
-        <a href="{API_URL}/docs" target="_blank">API 문서 (OpenAPI)</a>
+        {api_docs_link}
       </div>
     </div>
     """,
