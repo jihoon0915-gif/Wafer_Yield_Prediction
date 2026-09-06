@@ -6,9 +6,12 @@ SHAP 기여도·웨이퍼맵 조회를 REST API로 제공한다.
 
 엔드포인트:
   GET  /meta            대시보드 초기화용 메타데이터(피처 범위/기본값, 모델 목록, 성능)
-  POST /predict         단일/배치 웨이퍼 결함수 예측
-  POST /simulate        (비동기) KPI 변경 전/후 예측치 + SHAP 기여도 변화
+  POST /predict         단일/배치 웨이퍼 결함수 예측 (+ 이상 탐지 경보)
+  POST /simulate        (비동기) KPI 변경 전/후 예측치 + SHAP 기여도 변화 (+ 경보)
   GET  /wafer-map/{id}   group_id(예: "13_28") 기준 die-level 26x26 실측 불량 맵 조회
+  GET  /alerts          최근 경보 이력
+  GET  /alerts/config   경보 임계값 + Slack 연동 상태
+  POST /alerts/test     Slack 웹훅 설정 검증용 테스트 메시지
 
 실행: uvicorn app_api:app --reload
 """
@@ -27,17 +30,26 @@ import joblib
 import numpy as np
 import pandas as pd
 import shap
-from fastapi import FastAPI, HTTPException
+from dotenv import load_dotenv
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from wafer import alerting, slack
 from wafer.final_pipeline import ALL_FEATURES, CATEGORICAL_FEATURES, NUMERIC_FEATURES, TOP_KPI_FEATURES
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 MODELS_DIR = PROJECT_ROOT / "models"
 REAL_DIE_COUNT = 533  # wafer.config.WAFER_MAP_REAL_DIE_COUNT
 
-app = FastAPI(title="Wafer Yield — Final Model Inference & Simulation API")
+load_dotenv(PROJECT_ROOT / ".env")  # SLACK_WEBHOOK_URL 등 — 없으면 조용히 넘어감
+
+app = FastAPI(
+    title="Wafer Yield — Final Model Inference & Simulation API",
+    description="GroupKFold(Lot_Num)로 검증한 웨이퍼 결함수 예측 모델의 추론·What-If 시뮬레이션·"
+    "SHAP 원인분석·이상 탐지 경보 API",
+    version="1.1.0",
+)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # ---------------------------------------------------------------------
@@ -76,6 +88,10 @@ EXPLAINERS: dict[str, shap.TreeExplainer] = {
     for name, entry in all_candidates.items()
 }
 
+# 경보 임계값은 하드코딩하지 않고 실제 학습 데이터에서 계산한다
+ALERT_THRESHOLDS = alerting.AlertThresholds.from_frame(final_df)
+ALERT_LOG = alerting.AlertLog(maxlen=100, cooldown_seconds=300.0)
+
 
 def yield_pct(target: float) -> float:
     return round((REAL_DIE_COUNT - max(0.0, target)) / REAL_DIE_COUNT * 100, 3)
@@ -94,10 +110,21 @@ def validate_overrides(overrides: dict) -> None:
 
 
 def build_row_df(overrides: dict) -> pd.DataFrame:
+    """override에 명시적으로 null을 넣으면 NaN으로 남긴다 — 계측 결측(Gate 0)을
+    '중앙값으로 조용히 메우지 않고' 결측 그대로 모델과 경보 규칙에 전달하기 위함."""
     row = dict(FEATURE_DEFAULTS)
     row.update(overrides)
-    ordered = {c: row[c] for c in ALL_FEATURES}
+    ordered = {c: (np.nan if row[c] is None else row[c]) for c in ALL_FEATURES}
     return pd.DataFrame([ordered])
+
+
+def queue_alerts(background: BackgroundTasks, alerts: list[alerting.Alert]) -> list[dict]:
+    """쿨다운을 통과한 경보만 이력에 남기고 Slack 전송은 응답 이후로 미룬다
+    (웹훅 왕복시간이 추론 응답을 붙잡지 않도록)."""
+    fresh = ALERT_LOG.record(alerts)
+    if fresh:
+        background.add_task(slack.send_alerts, fresh)
+    return [a.to_dict() for a in alerts]
 
 
 def selected_matrix(model_name: str, X_raw: pd.DataFrame) -> tuple[np.ndarray, list[str]]:
@@ -116,7 +143,11 @@ def raw_value_lookup(row_df: pd.DataFrame, feat: str):
     r = row_df.iloc[0]
     if feat in r.index:
         val = r[feat]
-        return float(val) if isinstance(val, (int, float, np.floating, np.integer)) else val
+        if isinstance(val, (int, float, np.floating, np.integer)):
+            # NaN은 JSON 규격상 표현 불가(Starlette JSONResponse는 allow_nan=False) —
+            # 계측 결측을 null로 내보낸다.
+            return None if np.isnan(float(val)) else float(val)
+        return val
     for cat_col in CATEGORICAL_FEATURES:
         prefix = f"{cat_col}_"
         if feat.startswith(prefix):
@@ -135,15 +166,16 @@ class MetaResponse(BaseModel):
 
 
 class PredictRequest(BaseModel):
-    wafers: list[dict[str, float | str]] = Field(
+    wafers: list[dict[str, float | str | None]] = Field(
         ..., description="웨이퍼별 피처 override dict 목록(1개=단일, N개=배치). "
-        "지정 안 한 피처는 데이터셋 중앙값/최빈값으로 채워짐."
+        "지정 안 한 피처는 데이터셋 중앙값/최빈값으로 채워짐. "
+        "값을 null로 보내면 '계측 결측'으로 처리되어 Gate 0 경보 대상이 된다."
     )
     model: str = DEFAULT_MODEL
 
 
 class SimulateRequest(BaseModel):
-    overrides: dict[str, float | str] = Field(default_factory=dict, description="베이스라인 대비 변경할 KPI")
+    overrides: dict[str, float | str | None] = Field(default_factory=dict, description="베이스라인 대비 변경할 KPI")
     model: str = DEFAULT_MODEL
     top_n_shap: int = 10
 
@@ -175,23 +207,31 @@ def meta():
 
 
 @app.post("/predict")
-def predict(req: PredictRequest):
+def predict(req: PredictRequest, background: BackgroundTasks):
     validate_model_name(req.model)
     for w in req.wafers:
         validate_overrides(w)
 
     pipe = all_candidates[req.model]["pipeline"]
-    rows = pd.concat([build_row_df(w) for w in req.wafers], ignore_index=True)
+    row_frames = [build_row_df(w) for w in req.wafers]
+    rows = pd.concat(row_frames, ignore_index=True)
     preds = pipe.predict(rows)
     preds = np.maximum(0.0, preds)  # 물리적 하한(4단계에서 확립된 원칙)
 
-    return {
-        "model": req.model,
-        "predictions": [
-            {"predicted_target": round(float(p), 1), "predicted_yield_pct": yield_pct(float(p))}
-            for p in preds
-        ],
-    }
+    predictions = []
+    for i, (frame, pred) in enumerate(zip(row_frames, preds)):
+        pred = float(pred)
+        alerts = alerting.evaluate(
+            frame.iloc[0].to_dict(), pred, ALERT_THRESHOLDS,
+            context=f"predict:{req.model}", subject=f"예측 요청 #{i + 1}",
+        )
+        predictions.append({
+            "predicted_target": round(pred, 1),
+            "predicted_yield_pct": yield_pct(pred),
+            "alerts": queue_alerts(background, alerts),
+        })
+
+    return {"model": req.model, "predictions": predictions}
 
 
 def explain_row(model_name: str, row_df: pd.DataFrame) -> dict:
@@ -253,18 +293,26 @@ def _simulate_sync(overrides: dict, model_name: str, top_n_shap: int) -> dict:
 
 
 @app.post("/simulate")
-async def simulate(req: SimulateRequest):
+async def simulate(req: SimulateRequest, background: BackgroundTasks):
     validate_model_name(req.model)
     validate_overrides(req.overrides)
     # SHAP 계산은 CPU-bound라 이벤트 루프를 막지 않도록 스레드풀로 오프로드한다
     # (async def만 붙이고 동기 계산을 그대로 두면 진짜 비동기가 아니라 껍데기만
     # 비동기인 것 -- 그 차이를 실제로 지키기 위해 asyncio.to_thread 사용).
     result = await asyncio.to_thread(_simulate_sync, req.overrides, req.model, req.top_n_shap)
+
+    alerts = alerting.evaluate(
+        build_row_df(req.overrides).iloc[0].to_dict(),
+        result["modified"]["predicted_target"],
+        ALERT_THRESHOLDS,
+        context=f"simulate:{req.model}", subject="What-If 슬라이더 설정",
+    )
+    result["alerts"] = queue_alerts(background, alerts)
     return result
 
 
 @app.get("/wafer-shap/{group_id}")
-async def wafer_shap(group_id: str, model: str = DEFAULT_MODEL):
+async def wafer_shap(group_id: str, background: BackgroundTasks, model: str = DEFAULT_MODEL):
     """실측 웨이퍼 하나의 실제 공정 피처값으로 예측 + SHAP 전체 분해(waterfall 구성용).
     /simulate가 슬라이더 What-If용이라면, 이건 '실제 이 웨이퍼는 왜 이렇게 나왔나'용."""
     validate_model_name(model)
@@ -277,6 +325,13 @@ async def wafer_shap(group_id: str, model: str = DEFAULT_MODEL):
     result["actual_target"] = float(match.iloc[0]["Target"])
     result["actual_error_class"] = match.iloc[0]["error_class"]
     result["model"] = model
+    result["alerts"] = queue_alerts(
+        background,
+        alerting.evaluate(
+            row.iloc[0].to_dict(), result["predicted_target"], ALERT_THRESHOLDS,
+            context=f"wafer:{group_id}", subject=f"실측 웨이퍼 {group_id}",
+        ),
+    )
     return result
 
 
@@ -300,3 +355,30 @@ def wafer_map(group_id: str):
 def wafer_list(limit: int = 200):
     items = list(wafer_lookup.values())[:limit]
     return [{"group_id": w["group_id"], "Lot_Num": w["Lot_Num"], "Target": w["Target"], "error_class": w["error_class"]} for w in items]
+
+
+# ---------------------------------------------------------------------
+# 이상/불량 탐지 경보
+# ---------------------------------------------------------------------
+@app.get("/alerts")
+def alerts(limit: int = 20):
+    """최근 경보 이력. Slack 웹훅이 없어도 경보 판정 자체는 항상 기록되므로,
+    이 엔드포인트만으로 규칙이 동작하는지 확인할 수 있다."""
+    return {"slack": slack.config_status(), "alerts": ALERT_LOG.recent(limit)}
+
+
+@app.get("/alerts/config")
+def alerts_config():
+    return {"thresholds": ALERT_THRESHOLDS.to_dict(), "slack": slack.config_status()}
+
+
+@app.post("/alerts/test")
+def alerts_test():
+    """Slack 웹훅 설정 검증용 — 실제 경보와 구분되는 테스트 메시지를 보낸다."""
+    result = slack.send_test_message()
+    if not result["sent"] and result.get("reason") == "webhook_not_configured":
+        raise HTTPException(
+            409,
+            f"Slack 웹훅이 설정되지 않았습니다. 환경변수 {slack.WEBHOOK_ENV}에 Incoming Webhook URL을 넣고 재시작하세요.",
+        )
+    return result

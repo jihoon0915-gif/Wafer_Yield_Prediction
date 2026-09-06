@@ -26,6 +26,7 @@ ENV/
 *.key
 credentials.json
 secrets.*
+.streamlit/secrets.toml
 
 # ============================================================
 # OS / 에디터
