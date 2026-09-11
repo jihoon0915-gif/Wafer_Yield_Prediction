@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wafer Yield Control Room — 웨이퍼 수율 예측 · 품질 분석</title>
+<meta name="description" content="반도체 6개 공정 데이터 기반 불량 예측, 공정 조건 시뮬레이션, SPC·공정능력·FMEA·8D 품질 분석 대시보드">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔬</text></svg>">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <div>
+      <div class="brand-title">Wafer Yield Control Room</div>
+      <div class="brand-sub">웨이퍼 수율 예측 · 공정 시뮬레이션 · 품질 분석</div>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="화면 전환">
+    <button role="tab" data-view="home" aria-selected="true">1 · 데이터 · 예측</button>
+    <button role="tab" data-view="line" aria-selected="false">2 · 공정 라인</button>
+    <button role="tab" data-view="quality" aria-selected="false">3 · 품질 분석</button>
+  </nav>
+  <a class="repo-link" href="https://github.com/jihoon0915-gif/Wafer_Yield_Prediction" target="_blank" rel="noopener">GitHub</a>
+</header>
+
+<main>
+  <!-- ============ 1. 데이터 · 예측 ============ -->
+  <section id="view-home" class="view" data-active="true">
+    <div class="hero">
+      <div>
+        <h1>웨이퍼 불량, 생기기 전에 찾는다</h1>
+        <p class="lede">공정 데이터를 올리면 웨이퍼마다 <b>불량 칩 수</b>와 <b>수율</b>을 예측하고,
+          왜 그런 결과가 나왔는지(예측 근거)와 이상 징후 경보를 함께 보여줍니다.
+          모델은 학습에 쓰지 않은 새 생산 묶음(Lot) 기준으로 검증했습니다.</p>
+        <div class="stat-row" id="model-stats"></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h2>공정 데이터 올리기</h2>
+        <label class="dropzone" id="dropzone">
+          <input type="file" id="file-input" accept=".csv" hidden>
+          <span class="dz-icon" aria-hidden="true">⬆</span>
+          <span class="dz-main">CSV 파일을 끌어다 놓거나 클릭해서 선택</span>
+          <span class="dz-sub">웨이퍼 한 장 = 한 행 · 비어 있는 값은 계측 누락으로 처리</span>
+        </label>
+        <div class="file-status" id="file-status">선택된 파일 없음</div>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-predict" disabled>예측 시작</button>
+          <button class="btn" id="btn-sample">샘플 데이터로 해보기</button>
+          <a class="btn ghost" href="sample_wafers.csv" download>샘플 CSV 받기</a>
+        </div>
+        <details class="fmt">
+          <summary>CSV 형식 안내</summary>
+          <p>첫 행은 열 이름입니다. <code>wafer_id</code>(선택)와 아래 공정 변수 열을 넣으면 되고,
+            없는 열은 전체 데이터의 중앙값으로 채워집니다. <code>actual_defects</code> 열이 있으면 예측과 비교합니다.</p>
+          <p class="mono small" id="fmt-cols"></p>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>예측 결과 요약</h2>
+        <div id="summary-empty" class="empty">데이터를 올리고 <b>예측 시작</b>을 누르면 결과가 여기에 표시됩니다.</div>
+        <div id="summary" hidden>
+          <div class="stat-row" id="summary-stats"></div>
+          <div id="summary-hist"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="result-card" hidden>
+      <div class="card-head">
+        <h2>웨이퍼별 예측</h2>
+        <span class="muted small">행을 누르면 예측 근거와 웨이퍼 불량 지도를 볼 수 있습니다</span>
+      </div>
+      <div class="table-wrap"><table class="data" id="result-table"></table></div>
+    </div>
+
+    <div class="card" id="detail-card" hidden>
+      <div class="card-head"><h2 id="detail-title">웨이퍼 상세</h2></div>
+      <div class="grid-2 tight">
+        <div id="detail-map"></div>
+        <div id="detail-shap"></div>
+      </div>
+      <div id="detail-alerts"></div>
+    </div>
+  </section>
+
+  <!-- ============ 2. 공정 라인 ============ -->
+  <section id="view-line" class="view" data-active="false">
+    <div class="line-layout">
+      <div class="card line-stage">
+        <div class="card-head">
+          <h2>공정 라인</h2>
+          <span class="muted small">장비를 눌러 그 공정의 조건을 바꿔보세요 — 예측이 즉시 갱신됩니다</span>
+        </div>
+        <div id="line-svg"></div>
+        <div class="stat-row" id="line-stats"></div>
+        <div id="line-alerts"></div>
+      </div>
+      <aside class="card panel" id="param-panel" aria-live="polite"></aside>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <h2>무엇이 예측을 움직였나</h2>
+          <span class="muted small">빨강 = 불량을 늘리는 쪽 · 초록 = 줄이는 쪽</span>
+        </div>
+        <div id="line-shap"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>최적 조건 찾기</h2></div>
+        <p class="muted">현재 조건에서 출발해 예측 불량을 가장 크게 줄이는 변수부터 <b>최대 3개</b>만, 실제 데이터의
+          중심 60% 구간(하위 20%~상위 20%) 안에서 바꿉니다. 모든 변수를 한꺼번에 극단값으로 옮기면 데이터에 없던 조합이 되어
+          예측을 믿을 수 없기 때문입니다.</p>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-optimize">현재 공정만 최적화</button>
+          <button class="btn" id="btn-optimize-all">전체 공정 최적화</button>
+          <button class="btn ghost" id="btn-reset">초기 조건으로</button>
+        </div>
+        <div id="opt-result"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. 품질 분석 ============ -->
+  <section id="view-quality" class="view" data-active="false">
+    <div class="q-nav" role="tablist" aria-label="품질 분석 항목" id="q-nav"></div>
+    <div id="q-body"></div>
+  </section>
+</main>
+
+<footer class="foot">
+  모델: LightGBM · 22개 공정 변수 · GroupKFold(Lot) 검증 · 예측·근거 계산은 모두 이 브라우저 안에서 실행됩니다.
+  예측 기여도는 인과관계가 아니며, 추천 조건은 실제 적용 전 검증이 필요합니다.
+</footer>
+
+<div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+<script type="module" src="assets/app.js"></script>
+</body>
+</html>

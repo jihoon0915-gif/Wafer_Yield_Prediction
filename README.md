@@ -1,8 +1,11 @@
 # 웨이퍼 수율 예측 및 이상 탐지 시스템
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://wafer-yield-prediction.streamlit.app/)
+### 🚀 [대시보드 바로가기 → jihoon0915-gif.github.io/Wafer_Yield_Prediction](https://jihoon0915-gif.github.io/Wafer_Yield_Prediction/)
 
-### 🚀 [라이브 데모 바로가기 → wafer-yield-prediction.streamlit.app](https://wafer-yield-prediction.streamlit.app/)
+데이터 업로드 → 불량 예측 · 2.5D 공정 라인에서 조건 조절 · SPC / Cp·Cpk / Fishbone / PFMEA / 8D / ML vs SPC 품질 분석까지
+설치 없이 브라우저에서 바로 동작합니다(모델 추론과 예측 근거 계산도 브라우저 안에서 실행).
+
+<sub>백엔드 버전(FastAPI + 실제 Slack 알림 전송): [wafer-yield-prediction.streamlit.app](https://wafer-yield-prediction.streamlit.app/) — 무료 호스팅 특성상 오래 접속이 없으면 잠들어 첫 접속 시 깨우는 데 1분 정도 걸릴 수 있습니다.</sub>
 
 반도체 양산 공정 데이터를 **가설 검증 → 통계적 이상 탐지 → SHAP 기반 근본원인분석**으로
 이어지는 품질 데이터 분석 체계로 구축한 프로젝트입니다. 통계적 공정관리(SPC) 관리도
@@ -18,9 +21,14 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.62-FF4B4B?logo=streamlit&logoColor=white)
 
 <p align="center">
-  <img src="reports/figures/dashboard_wafer_analysis.png" width="880" alt="대시보드 — 실측 웨이퍼 분석 화면">
+  <img src="reports/figures/web_process_line.png" width="880" alt="대시보드 — 공정 라인 화면">
 </p>
-<p align="center"><sub>실측 웨이퍼의 die 단위 불량 분포(좌)와 그 웨이퍼의 예측 근거를 SHAP Waterfall로 분해한 화면(우)</sub></p>
+<p align="center"><sub>공정 라인: 장비를 눌러 조건을 바꾸면 예측 불량·수율·경보·예측 근거가 즉시 갱신되고, '최적 조건 찾기'가 개선 조합을 제안</sub></p>
+
+<p align="center">
+  <img src="reports/figures/web_quality_ml_vs_spc.png" width="880" alt="대시보드 — ML vs SPC 비교 화면">
+</p>
+<p align="center"><sub>품질 분석: SPC 관리도 · 공정능력 · Fishbone · PFMEA · 8D · ML vs SPC 비교 (그림은 ML vs SPC)</sub></p>
 
 ---
 
@@ -34,6 +42,8 @@
 | 검증한 가설 | 13개 — 원본 7 + 파생변수 6, 각각 ML 6종 × GridSearchCV로 개별 검증 |
 | 관리구간 적용 효과 | Chip Yield 80.66% → **81.61% (+0.94%p)** |
 | 이상 Lot 탐지 | 32개 Lot 백테스트에서 실제 이상 Lot 1건 탐지, **오탐 0건** |
+| ML vs 기존 SPC | 같은 오경보율(1.4%)에서 불량 검출률 **ML 29.0% vs 개별 변수 3σ SPC 7.3%** (교차검증 · AUC 0.906 vs 0.655) |
+| 공정능력 | 회로 선폭 Cpk **0.40**, 산화막 두께 Cpk **0.46** — 규격 기반 계산, 모두 1.33 미달 |
 | 실시간 경보 | 계측 결측 · 리스크존 진입 · 예측 관리상한(SPC) 초과 3종 → Slack 자동 전송 |
 
 ## 2. 핵심 발견
@@ -142,6 +152,9 @@ pip install -r requirements.txt
 
 streamlit run app_ui.py            # http://localhost:8501 — API가 없으면 자동 기동
 ```
+
+정적 대시보드(`docs/`)는 모델·품질 데이터를 JSON으로 내보내 브라우저에서 추론합니다. 모델을 다시 학습했다면
+`python scripts/14_export_web_dashboard.py`로 재생성합니다(브라우저 추론은 Python 결과와 오차 1e-13 이내로 검증).
 
 분석 파이프라인 재현, 전체 API 명세, Streamlit Cloud 배포, 폴더 구조는
 [`reports/SYSTEM_SETUP_GUIDE.md`](reports/SYSTEM_SETUP_GUIDE.md)에 정리했습니다.
