@@ -82,12 +82,18 @@ document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("cli
 }));
 
 // ---------------------------------------------------------------- 1. 데이터 · 예측
+const C_ = Q.compare;
 $("#model-stats").innerHTML = [
+  ["불량 웨이퍼 판별력 (AUC)", C_.ml_same_fpr.auc.toFixed(3), `1에 가까울수록 좋음 · 기존 SPC ${C_.spc.auc.toFixed(3)}`, "good"],
+  ["불량 칩 수 예측 (R²)", spec.metrics.r2_mean.toFixed(3), `학습에 없던 Lot 기준 · 평균 오차 ±${spec.metrics.mae_mean.toFixed(1)}개`],
   ["예측 모델", "LightGBM", `공정 변수 ${spec.metrics.n_features}개 사용`],
-  ["검증 성능 (R²)", spec.metrics.r2_mean.toFixed(3), "학습에 없던 Lot 기준"],
-  ["평균 오차", `±${spec.metrics.mae_mean.toFixed(1)}개`, "웨이퍼당 불량 칩 수"],
   ["학습 데이터", `${Q.overall.n_wafers.toLocaleString()}장`, `${Q.overall.n_lots}개 Lot · 6개 공정`],
-].map(([k, v, d]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join("");
+].map(([k, v, d, c]) => `<div class="stat ${c || ""}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join("");
+$("#model-stats").insertAdjacentHTML("afterend", `<p class="note" style="max-width:900px">
+  <b>불량 칩 개수를 정확히 맞히는 것보다 불량 웨이퍼를 가려내는 게 실무에서 더 중요합니다.</b>
+  그 기준인 판별력은 AUC ${C_.ml_same_fpr.auc.toFixed(3)}으로, 같은 오경보율에서 기존 SPC보다 불량을 약
+  ${(C_.ml_same_fpr.recall / C_.spc.recall).toFixed(1)}배 더 찾습니다. R² ${spec.metrics.r2_mean.toFixed(2)}는 학습에 쓰지 않은
+  Lot으로 엄격하게 검증한 값입니다 — 같은 데이터를 흔한 방식으로 검증하면 웨이퍼 중복 기록 때문에 0.98까지 부풀려집니다.</p>`);
 $("#fmt-cols").textContent = ["wafer_id", ...PARAM_KEYS, "actual_defects"].join(", ");
 
 let uploaded = null;
