@@ -17,9 +17,12 @@ const DIES = Q.overall.real_die_count;
 const yieldOf = (t) => (100 * (DIES - t)) / DIES;
 
 // 모델 피처명 → 사람이 읽는 라벨 / 원래 단위 값
+const PROC_NAME = Object.fromEntries(Q.processes.map((p) => [p.id, p.name]));
+// 공정 패널 밖에서는 "식각 · 2단계 후 남은 막 두께"처럼 공정명을 붙여 어느 공정의 값인지 보이게 한다
 function labelOf(name) {
-  if (name === "oxid_thickness_spec_gap") return PARAMS.thickness.label;
-  return PARAMS[name]?.label || name;
+  const key = name === "oxid_thickness_spec_gap" ? "thickness" : name;
+  const m = PARAMS[key];
+  return m ? `${PROC_NAME[m.process]} · ${m.label}` : name;
 }
 function rawOf(name, row) {
   const key = name === "oxid_thickness_spec_gap" ? "thickness" : name;
@@ -52,6 +55,17 @@ function evaluate(row, pred) {
   if (pred > u.ucl3) out.push({ level: "crit", title: "예측 불량 칩 수 관리 상한(3σ) 초과", body: `예측 ${pred.toFixed(0)}개 > 상한 ${u.ucl3.toFixed(0)}개`, evidence: `전체 평균 ${u.mean}개, 표준편차 ${u.sd}` });
   else if (pred > u.ucl2) out.push({ level: "warn", title: "예측 불량 칩 수 관리 상한(2σ) 초과", body: `예측 ${pred.toFixed(0)}개 > 상한 ${u.ucl2.toFixed(0)}개`, evidence: `전체 평균 ${u.mean}개, 표준편차 ${u.sd}` });
   return out;
+}
+// 예측 근거 막대 읽는 법 — 실제 숫자로 "기준값 + 막대 합 = 예측"을 보여준다
+function shapNote(ex, pred) {
+  const top = [...ex].sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+  const shown = top.slice(0, 10).reduce((s, e) => s + e.value, 0);
+  const rest = top.slice(10).reduce((s, e) => s + e.value, 0);
+  const sg = (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}`;
+  return `<b>읽는 법</b> — 학습 데이터의 평균적인 웨이퍼는 불량 칩 <b>${model.baseValue.toFixed(1)}개</b>로 예측됩니다.
+    각 막대는 지금 설정된 그 변수 값이 이 평균에서 불량 칩을 몇 개 늘렸는지(빨강)·줄였는지(초록)입니다.
+    ${model.baseValue.toFixed(1)} ${sg(shown)}(표시한 10개) ${sg(rest)}(나머지 ${top.length - 10}개) = 예측 <b>${Math.max(0, model.baseValue + shown + rest).toFixed(1)}개</b>
+    ${Math.abs(model.baseValue + shown + rest - pred) > 0.05 ? "(음수는 0으로 표시)" : ""}. 인과관계가 아니라 모델이 그렇게 판단한 근거입니다.`;
 }
 const levelOf = (alerts) => (alerts.some((a) => a.level === "crit") ? "crit" : alerts.length ? "warn" : "ok");
 const BADGE = { ok: '<span class="badge ok">정상</span>', warn: '<span class="badge warn">▲ 주의</span>', crit: '<span class="badge crit">● 심각</span>' };
@@ -162,6 +176,7 @@ function showDetail(r) {
   waferMap($("#detail-map"), known?.map, { title: known ? `실측 불량 지도 (실제 불량 칩 ${known.target}개)` : "업로드 데이터 — 실측 지도 없음" });
   $("#detail-shap").innerHTML = '<h3 style="margin-bottom:6px">예측 근거 — 평균 대비 무엇이 불량을 늘리고 줄였나</h3><div></div>';
   shapBars($("#detail-shap div"), r.ex.map((e) => ({ ...e, label: labelOf(e.name), raw: rawOf(e.name, r.x) })));
+  $("#detail-shap").insertAdjacentHTML("beforeend", `<p class="note">${shapNote(r.ex, r.pred)}</p>`);
   $("#detail-alerts").innerHTML = alertHtml(r.alerts);
 }
 
@@ -188,7 +203,10 @@ function drawPanel() {
     return;
   }
   panel.innerHTML = `<h2>${p.name}</h2><p class="desc">${p.desc}</p>` +
-    (p.id === "etch" ? `<label class="toggle"><input type="checkbox" id="gate0" ${gate0 ? "checked" : ""}> 막 두께 계측 누락 상황 재현 (Gate 0)</label>` : "") +
+    (p.id === "etch" ? `<label class="toggle"><input type="checkbox" id="gate0" ${gate0 ? "checked" : ""}> 막 두께 측정값이 빠진 상황 가정하기</label>
+      <p class="note" style="margin:-10px 0 14px">식각 후 막 두께가 측정·기록되지 않은 웨이퍼를 재현합니다. 실제 최다 불량 웨이퍼(불량 칩 666개)가
+        이런 경우였는데, 모델은 빈 값을 평균으로 채워 예측이 정상처럼 나옵니다. 켜보면 예측값은 거의 그대로지만
+        <b>Gate 0 경보</b>가 이를 잡아내는 것을 확인할 수 있습니다.</p>` : "") +
     p.params.map((k) => {
       const m = PARAMS[k], v = state[k], st = stepOf(m);
       const risk = m.defect_rate_high - m.defect_rate_low;
@@ -216,7 +234,9 @@ function update() {
     ["관리 상한 (3σ)", `${Q.target_ucl.ucl3.toFixed(0)}개`, `주의 2σ ${Q.target_ucl.ucl2.toFixed(0)}개`],
   ].map(([k, v, dd, c]) => `<div class="stat ${c || ""}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${dd}</div></div>`).join("");
   $("#line-alerts").innerHTML = alertHtml(alerts);
-  shapBars($("#line-shap"), ex.map((e) => ({ ...e, label: labelOf(e.name), raw: rawOf(e.name, row) })));
+  $("#line-shap").innerHTML = '<div></div><p class="note"></p>';
+  shapBars($("#line-shap div"), ex.map((e) => ({ ...e, label: labelOf(e.name), raw: rawOf(e.name, row) })));
+  $("#line-shap .note").innerHTML = shapNote(ex, pred);
   // 장비 표시등: 그 공정 변수들이 예측을 얼마나 밀어올렸는지
   const byProc = {};
   ex.forEach((e) => { const p = processOf(e.name); if (p) byProc[p] = (byProc[p] || 0) + e.value; });
@@ -255,7 +275,7 @@ function optimize(keys) {
       <div class="stat"><div class="k">최적화 전</div><div class="v">${before.toFixed(1)}개</div><div class="d">수율 ${yieldOf(before).toFixed(2)}%</div></div>
       <div class="stat good"><div class="k">최적화 후</div><div class="v">${after.toFixed(1)}개</div><div class="d">수율 ${yieldOf(after).toFixed(2)}%</div></div></div>
     ${changed.length ? `<div class="table-wrap"><table class="data plain"><thead><tr><th>변수</th><th class="num">변경 전</th><th class="num">추천값</th></tr></thead><tbody>
-      ${changed.map((k) => `<tr><td>${PARAMS[k].label}</td><td class="num">${fmt(start[k], 2)}</td><td class="num"><b>${fmt(state[k], 2)}</b></td></tr>`).join("")}</tbody></table></div>`
+      ${changed.map((k) => `<tr><td>${labelOf(k)}</td><td class="num">${fmt(start[k], 2)}</td><td class="num"><b>${fmt(state[k], 2)}</b></td></tr>`).join("")}</tbody></table></div>`
       : '<div class="ok-box">현재 조건이 이미 이 범위 안에서 최적입니다.</div>'}
     <p class="note">예측 모델 기준 추천입니다. 모델은 변수 간 상관을 학습한 것이지 인과를 보장하지 않으므로, 실제 적용 전 소량 시험 생산으로 확인해야 합니다. 추천값은 공정 라인에 이미 반영되었습니다.</p>`;
   drawPanel(); update();

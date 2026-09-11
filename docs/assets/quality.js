@@ -3,6 +3,11 @@
 import { controlChart, histogram, rocChart, pareto, fmt, COLORS as C } from "./charts.js";
 
 const h = (html) => { const d = document.createElement("div"); d.innerHTML = html.trim(); return d; };
+// 변수명 앞에 공정명을 붙여 어느 공정의 값인지 바로 보이게 (예: "식각 · 2단계 후 남은 막 두께")
+const full = (q, key, label) => {
+  const proc = q.processes.find((p) => p.id === q.params[key]?.process);
+  return proc ? `${proc.name} · ${label}` : label;
+};
 const pct = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
 
 const MODULES = [
@@ -62,7 +67,7 @@ function spc(body, { quality: q }) {
   const seg = body.querySelector("#imr-seg");
   const draw = (key) => {
     seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.k === key ? "true" : "false"));
-    const m = q.imr[key];
+    const m = { ...q.imr[key], label: full(q, key, q.imr[key].label) };
     const flags = m.values.map((v) => v !== null && (v > m.ucl || v < m.lcl));
     const unit = m.unit ? ` (${m.unit})` : "";
     controlChart(body.querySelector("#ichart"), {
@@ -89,7 +94,7 @@ function spc(body, { quality: q }) {
   };
   keys.forEach((k) => {
     const b = document.createElement("button");
-    b.dataset.k = k; b.textContent = q.imr[k].label;
+    b.dataset.k = k; b.textContent = full(q, k, q.imr[k].label);
     b.addEventListener("click", () => draw(k));
     seg.appendChild(b);
   });
@@ -121,7 +126,7 @@ function cpk(body, { quality: q }) {
   Object.entries(cap).forEach(([key, c]) => {
     const [g, cls] = grade(c.cpk);
     const card = h(`<div class="card">
-      <div class="card-head"><h2>${c.label}${c.unit ? ` <span class="muted small">(${c.unit})</span>` : ""}</h2>
+      <div class="card-head"><h2>${full(q, key, c.label)}${c.unit ? ` <span class="muted small">(${c.unit})</span>` : ""}</h2>
         <span class="badge ${cls}">${g}</span></div>
       <div class="muted small">${c.spec_source}</div>
       <div class="stat-row">
@@ -174,7 +179,7 @@ const MARK = { v: ["확인됨", C.critical, "●"], w: ["추가 확인 필요", 
 function fishbone(body, { quality: q }) {
   const top2 = q.pareto.slice(0, 2);
   body.append(h(`
-    <p class="q-intro">특성요인도(Fishbone)는 불량(머리)의 원인을 범주(뼈)별로 펼쳐 놓는 도구입니다.
+    <p class="q-intro">특성요인도(Fishbone)는 머리에 해결할 문제(결과 특성)를, 뼈에 그 원인 후보를 범주별로 펼쳐 놓는 도구입니다.
       일반적인 브레인스토밍과 달리, 여기 적힌 원인은 모두 이 프로젝트의 데이터와 13개 가설 검증 결과로 <b>확인·기각 여부를 판정</b>했습니다.</p>
     <div class="card"><div class="card-head"><h2>먼저, 어떤 불량이 많은가 — 불량 유형 파레토</h2>
       <span class="muted small">불량 웨이퍼 ${q.pareto.reduce((s, p) => s + p.count, 0)}장</span></div>
@@ -184,25 +189,27 @@ function fishbone(body, { quality: q }) {
       <div class="legend">${Object.values(MARK).map(([t, c, s]) => `<span><b style="color:${c}">${s}</b> ${t}</span>`).join("")}</div></div>
     <div class="card"><h2>원인별 근거</h2><div class="table-wrap"><table class="data plain" id="fish-table"></table></div></div>`));
   pareto(body.querySelector("#pareto"), q.pareto);
-  drawFish(body.querySelector("#fish-svg"));
+  drawFish(body.querySelector("#fish-svg"), q);
   const t = body.querySelector("#fish-table");
   t.innerHTML = `<thead><tr><th>범주</th><th>원인 후보</th><th>판정</th><th>근거</th></tr></thead><tbody>${
     BONES.flatMap((b) => b.causes.map(([k, c, e]) => `<tr><td>${b.cat}</td><td class="wrap">${c}</td>
       <td><b style="color:${MARK[k][1]}">${MARK[k][2]}</b> ${MARK[k][0]}</td><td class="wrap muted">${e}</td></tr>`)).join("")}</tbody>`;
 }
 
-function drawFish(container) {
+function drawFish(container, q) {
   const W = 1200, H = 560, spineY = H / 2, headX = 1030;
   const ns = "http://www.w3.org/2000/svg";
   const s = document.createElementNS(ns, "svg");
   s.setAttribute("viewBox", `0 0 ${W} ${H}`);
   s.setAttribute("role", "img");
-  s.setAttribute("aria-label", "웨이퍼 불량 특성요인도");
+  s.setAttribute("aria-label", "웨이퍼 수율 저하 특성요인도");
   const el = (tag, a, txt) => { const n = document.createElementNS(ns, tag); for (const k in a) n.setAttribute(k, a[k]); if (txt) n.textContent = txt; s.appendChild(n); return n; };
   el("line", { x1: 40, y1: spineY, x2: headX, y2: spineY, stroke: C.s1, "stroke-width": 4, "stroke-linecap": "round" });
   el("polygon", { points: `${headX},${spineY - 44} ${W - 20},${spineY - 44} ${W - 20},${spineY + 44} ${headX},${spineY + 44}`, fill: "#1c2a45", stroke: C.s1, "stroke-width": 1.5 });
-  el("text", { x: (headX + W - 20) / 2, y: spineY - 8, "text-anchor": "middle", class: "bone-label" }, "웨이퍼 불량");
-  el("text", { x: (headX + W - 20) / 2, y: spineY + 14, "text-anchor": "middle", fill: C.ink2, "font-size": 12 }, "평균 불량률 7.28%");
+  const hx = (headX + W - 20) / 2;
+  el("text", { x: hx, y: spineY - 14, "text-anchor": "middle", class: "bone-label" }, "웨이퍼 수율 저하");
+  el("text", { x: hx, y: spineY + 8, "text-anchor": "middle", fill: C.ink2, "font-size": 12 }, `평균 칩 수율 ${q.overall.baseline_yield}%`);
+  el("text", { x: hx, y: spineY + 26, "text-anchor": "middle", fill: C.ink2, "font-size": 12 }, `불량 웨이퍼 ${q.overall.defect_rate_pct}%`);
   const tops = BONES.filter((b) => b.side === "top"), bots = BONES.filter((b) => b.side === "bottom");
   [[tops, -1], [bots, 1]].forEach(([bones, dir]) => {
     bones.forEach((b, i) => {
@@ -230,7 +237,7 @@ const occ = (rate) => O_SCALE.find(([t]) => rate >= t)[1];
 function fmea(body, { quality: q }) {
   const p = q.params;
   const rows = [
-    { proc: "식각", mode: "남은 막 두께 과다 (상위 20%)", effect: "가장자리·국부 불량 → 칩 불량", S: 7,
+    { proc: "식각", mode: "남은 막 두께 과다 (상위 20%)", effect: "가장자리·한 곳에 뭉친 불량 → 칩 불량", S: 7,
       cause: "식각 조건 편차(온도·플라즈마 출력)", rate: p["Thin F2"].defect_rate_high / 100,
       ctrl: "개별 변수 3σ 관리도", D: 7, dNote: "관리도 단독 불량 검출률 7% 수준(⑥)",
       action: "잠정 관리 상한 3,666Å 설정 + 리스크존 자동 경보(구현)", D2: 4 },
@@ -284,7 +291,7 @@ function d8(body, { quality: q, wafers, model }) {
   const steps = [
     ["D0", "긴급 대응 필요성 판단", `<p>Lot 25 불량률 <b>${pct(lot25.p)}</b> — p 관리도 상한(${pct(lot25.ucl)})의 3배 이상 이탈. 전체 평균(${pct(q.p_chart.p_bar, 2)}) 대비 8배.</p>`],
     ["D1", "팀 구성 (가정)", `<p>품질보증(리더) · 식각 공정 · 노광 공정 · 계측 · 데이터 분석 담당.</p>`],
-    ["D2", "문제 기술", `<ul><li><b>무엇이</b>: Lot 25, 54장 중 ${lot25.d}장 불량 — 가장자리 국부 15, 국부 9, 무작위 7, 긁힘 2</li>
+    ["D2", "문제 기술", `<ul><li><b>무엇이</b>: Lot 25, 54장 중 ${lot25.d}장 불량 — 가장자리 한쪽 뭉침 15, 안쪽 한 곳 뭉침 9, 전체에 흩어짐 7, 긁힌 선 모양 2</li>
       <li><b>얼마나</b>: 웨이퍼당 평균 불량 칩 ${lot25.mean_target}개 (전체 평균 ${q.overall.mean_target}개)</li>
       <li><b>어떻게 알았나</b>: Lot 불량률 p 관리도 이탈</li></ul>`],
     ["D3", "임시 조치 (가정)", `<ul><li>Lot 25 출하 보류 및 전수 재검사</li><li>동일 식각 조건으로 진행 중인 Lot의 남은 막 두께 우선 계측</li></ul>`],
@@ -303,7 +310,8 @@ function d8(body, { quality: q, wafers, model }) {
     ["D8", "종결 및 공유", `<p>효과 검증 후 종결, 유사 공정 라인에 대책 수평 전개.</p>`],
   ];
   body.append(h(`<p class="q-intro">8D는 불량 발생 시 문제 정의부터 재발 방지까지 8단계로 추적하는 문제 해결 보고서입니다.
-    실제 데이터에서 관리 이탈한 <b>Lot 25</b>를 대상으로 작성했습니다. 사실(D0·D2·D4·D6)은 데이터에서, 조직 대응(D1·D3)은 <b>가정한 시나리오</b>입니다.</p>
+    실제 데이터에서 관리 이탈한 <b>Lot 25</b>를 대상으로 작성했습니다. D0·D2·D4·D6은 실제 데이터로 작성했고,
+    팀 구성(D1)과 임시 조치(D3)는 상황을 <b>가정해</b> 작성했습니다.</p>
     <div class="d8">${steps.map(([t, n, c]) => `<div class="d8-step"><div class="tag">${t}</div><div><h3>${n}</h3>${c}</div></div>`).join("")}</div>`));
 }
 

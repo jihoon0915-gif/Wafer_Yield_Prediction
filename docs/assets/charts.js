@@ -63,7 +63,7 @@ export const hideTip = () => { tip().hidden = true; };
 // ---------- 발산형 가로 막대 (예측 근거) ----------
 export function shapBars(container, items, { top = 10, unit = "개" } = {}) {
   const rows = [...items].sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, top);
-  const W = 560, rowH = 28, padL = 190, padR = 70, H = rows.length * rowH + 30;
+  const W = 660, rowH = 28, padL = 270, padR = 70, H = rows.length * rowH + 30;
   const s = root(container, W, H, "예측 근거 기여도 막대");
   const maxAbs = Math.max(1e-6, ...rows.map((r) => Math.abs(r.value)));
   const mid = padL + (W - padL - padR) / 2;

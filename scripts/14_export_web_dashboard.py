@@ -58,15 +58,15 @@ PROCESSES = [
                 ("Thin F4", "최종 남은 막 두께", "Å"), ("Temp_Etching", "식각 온도", "°C"),
                 ("Source_Power", "플라즈마 출력", ""), ("Selectivity", "선택비", "")]},
     {"id": "implant", "name": "이온주입", "desc": "불순물 이온을 넣어 전기적 성질을 만드는 공정",
-     "params": [("Flux60s", "60초 주입량", ""), ("Flux90s", "90초 주입량", ""),
+     "params": [("Flux60s", "주입량 (60초 구간)", ""), ("Flux90s", "주입량 (90초 구간)", ""),
                 ("input_Energy", "주입 에너지", ""), ("Temp_implantation", "주입 온도", "°C")]},
     {"id": "inspect", "name": "검사", "desc": "완성된 칩의 불량 여부를 판정",
      "params": []},
 ]
 
 DEFECT_KO = {
-    "Edge-Loc": "가장자리 국부 불량", "Loc": "국부 불량", "Random": "무작위 불량",
-    "Center": "중앙 집중 불량", "Scratch": "긁힘", "Near-full": "전면 불량", "Edge-Ring": "가장자리 링 불량",
+    "Edge-Loc": "가장자리 한쪽 뭉침", "Loc": "안쪽 한 곳 뭉침", "Random": "전체에 흩어짐",
+    "Center": "중앙에 몰림", "Scratch": "긁힌 선 모양", "Near-full": "거의 전체 불량", "Edge-Ring": "가장자리 둘레 전체",
 }
 
 
