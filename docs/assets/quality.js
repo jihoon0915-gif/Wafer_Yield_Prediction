@@ -3,10 +3,11 @@
 import { controlChart, histogram, rocChart, pareto, fmt, COLORS as C } from "./charts.js";
 
 const h = (html) => { const d = document.createElement("div"); d.innerHTML = html.trim(); return d; };
-// 변수명 앞에 공정명을 붙여 어느 공정의 값인지 바로 보이게 (예: "식각 · 2단계 후 남은 막 두께")
+// 변수명 앞에 공정명을 붙여 어느 공정의 값인지 바로 보이게 (예: "식각 · 식각 20분 후 잔막 두께")
 const full = (q, key, label) => {
   const proc = q.processes.find((p) => p.id === q.params[key]?.process);
-  return proc ? `${proc.name} · ${label}` : label;
+  if (!proc) return label;
+  return label.startsWith(proc.name) ? label : `${proc.name} · ${label}`;
 };
 const pct = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
 
@@ -120,8 +121,8 @@ function cpk(body, { quality: q }) {
       <b>규격과 실제 불량이 연결되지 않는다</b>는 뜻이라, 규격 한계의 타당성 재검토가 먼저입니다.`,
     Line_CD: `규격(25~55nm) 이탈이 ${cap.Line_CD.out_of_spec_pct}%로 가장 심각합니다. 평균은 규격 중앙(40nm) 근처라
       <b>치우침보다 산포가 문제</b>(Cp ${cap.Line_CD.cp} ≈ Cpk ${cap.Line_CD.cpk}) — 노광 조건의 편차를 줄여야 합니다. 이상 Lot 25는 54장 중 30장이 이탈했습니다.`,
-    "Thin F2": `공식 규격이 없어, 불량률이 0%인 하위 20% 구간과 18.3%로 뛰는 상위 20% 구간의 경계(3,666Å)를 잠정 상한으로 두고 계산했습니다.
-      <b>규격 제정이 필요한 핵심 변수</b>임을 보여주는 참고치입니다.`,
+    "Thin F2": `공식 규격이 없어, 불량률이 0%인 하위 20% 구간과 18.3%로 뛰는 상위 20% 구간의 경계(3,666nm)를 잠정 상한으로 두고 계산했습니다.
+      <b>규격 제정이 필요한 핵심 변수</b>임을 보여주는 참고치입니다. 상위 20% 구간의 18.3%는 교란 Lot 25가 포함된 값이며, Lot 25를 제외하면 11.3%입니다(reports/15_control_window_robustness.md).`,
   };
   Object.entries(cap).forEach(([key, c]) => {
     const [g, cls] = grade(c.cpk);
@@ -155,14 +156,14 @@ function cpk(body, { quality: q }) {
 // ---------------------------------------------------------------- ③ Fishbone
 const BONES = [
   { cat: "방법 (공정 조건)", side: "top", causes: [
-    ["v", "식각 후 남은 막 두께 상위 20% → 불량률 18.3%", "예측 기여도 1위 · 하위 20% 구간은 0%"],
+    ["v", "식각 잔막 두께 상위 20% → 불량률 18.3%", "예측 기여도 1위 · 하위 20% 0% · 교란 Lot 25 제외 시 11.3%"],
     ["v", "식각 온도 상위 20% → 불량률 12.6%", "하위 20%는 3.8%"],
     ["v", "건식 산화 불량률 9.4% (습식 4.3%)", "산화 방식별 2배 차이"]] },
   { cat: "측정 (계측)", side: "top", causes: [
     ["v", "핵심 계측값(막 두께) 누락 웨이퍼 3장 중 2장이 최다 불량(666개)", "계측 누락 자체가 선행 신호 → Gate 0 경보"],
     ["w", "산화 온도 관리도 오경보 과다", "두 산화 방식 혼합으로 이탈 851건 — 관리도 설계 문제"]] },
   { cat: "자재 (재료)", side: "top", causes: [
-    ["v", "감광액 두께 목표비 상위 20% → 불량률 11.7%", "하위 20%는 3.5%"],
+    ["v", "레지스트 균일도 상위 20% → 불량률 11.7%", "하위 20%는 3.5%"],
     ["x", "산화막 두께 규격(700nm) 미달", "미달 웨이퍼 불량률 1.2%로 오히려 낮음 — 원인 아님"]] },
   { cat: "설비", side: "bottom", causes: [
     ["x", "장비(챔버)별 차이", "가설 H5 검증 결과 기각 — 6개 모델 모두 성능 하락"],
@@ -240,7 +241,7 @@ function fmea(body, { quality: q }) {
     { proc: "식각", mode: "남은 막 두께 과다 (상위 20%)", effect: "가장자리·한 곳에 뭉친 불량 → 칩 불량", S: 7,
       cause: "식각 조건 편차(온도·플라즈마 출력)", rate: p["Thin F2"].defect_rate_high / 100,
       ctrl: "개별 변수 3σ 관리도", D: 7, dNote: "관리도 단독 불량 검출률 7% 수준(⑥)",
-      action: "잠정 관리 상한 3,666Å 설정 + 리스크존 자동 경보(구현)", D2: 4 },
+      action: "잠정 관리 상한 3,666nm 설정 + 리스크존 자동 경보(구현)", D2: 4 },
     { proc: "계측", mode: "핵심 계측값 누락", effect: "불량 웨이퍼가 정상으로 예측됨(검출 실패)", S: 9,
       cause: "계측 설비 누락 · 데이터 전송 실패", rate: 3 / 1704, rateNote: "3/1,704장",
       ctrl: "없음 — 모델이 중앙값으로 조용히 대치", D: 10, dNote: "예측값이 정상 범위로 나와 알 수 없음",
@@ -296,10 +297,10 @@ function d8(body, { quality: q, wafers, model }) {
       <li><b>어떻게 알았나</b>: Lot 불량률 p 관리도 이탈</li></ul>`],
     ["D3", "임시 조치 (가정)", `<ul><li>Lot 25 출하 보류 및 전수 재검사</li><li>동일 식각 조건으로 진행 중인 Lot의 남은 막 두께 우선 계측</li></ul>`],
     ["D4", "근본 원인 분석 (데이터 근거)", `<ul>
-      <li><b>식각</b>: 2단계 후 남은 막 두께의 Lot 평균이 전체 Lot 대비 <b>+2.36σ</b>, 3단계 +1.80σ — 두께 리스크존 웨이퍼 12장</li>
+      <li><b>식각</b>: 20분 후 잔막 두께의 Lot 평균이 전체 Lot 대비 <b>+2.36σ</b>, 30분 후 +1.80σ — 두께 리스크존 웨이퍼 12장</li>
       <li><b>노광</b>: 회로 선폭 규격 이탈 <b>30/54장(55.6%)</b> — 전체 이탈률 ${q.capability.Line_CD.out_of_spec_pct}%의 2.6배</li>
       <li><b>배제된 원인</b>: 노광 파장(UV 종류)은 Lot 25가 한 종류만 써서 생긴 착시 — 가설 H1에서 Lot을 통제하자 10개 모델 중 9개가 효과 없음, 남은 1개(LightGBM)도 R² +0.0036으로 실무상 무의미</li></ul>`],
-    ["D5", "영구 대책 선정", `<ul><li>식각 남은 막 두께 잠정 관리 상한(3,666Å) 설정</li><li>노광 선폭 산포 축소(Cpk 0.40 → 1.33 목표)</li>
+    ["D5", "영구 대책 선정", `<ul><li>식각 잔막 두께 잠정 관리 상한(3,666nm) 설정</li><li>노광 선폭 산포 축소(Cpk 0.40 → 1.33 목표)</li>
       <li>Lot p 관리도 + ML 불량 예측 경보를 공정 중 실시간 운영</li></ul>`],
     ["D6", "효과 검증 (모델 시뮬레이션)", `<p>Lot 25의 막 두께 3종을 전체 중앙값으로 되돌렸을 때, 이 페이지의 예측 모델로 다시 계산한 결과:</p>
       <div class="stat-row"><div class="stat"><div class="k">대책 전 예측 불량 칩</div><div class="v">${before.toFixed(1)}개</div><div class="d">예측 수율 ${yieldOf(before).toFixed(2)}%</div></div>

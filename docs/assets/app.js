@@ -18,11 +18,14 @@ const yieldOf = (t) => (100 * (DIES - t)) / DIES;
 
 // 모델 피처명 → 사람이 읽는 라벨 / 원래 단위 값
 const PROC_NAME = Object.fromEntries(Q.processes.map((p) => [p.id, p.name]));
-// 공정 패널 밖에서는 "식각 · 2단계 후 남은 막 두께"처럼 공정명을 붙여 어느 공정의 값인지 보이게 한다
+// 공정 패널 밖에서는 "식각 · 식각 20분 후 잔막 두께"처럼 공정명을 붙여 어느 공정의 값인지 보이게 한다
 function labelOf(name) {
   const key = name === "oxid_thickness_spec_gap" ? "thickness" : name;
   const m = PARAMS[key];
-  return m ? `${PROC_NAME[m.process]} · ${m.label}` : name;
+  if (!m) return name;
+  const proc = PROC_NAME[m.process];
+  // 라벨이 이미 공정명으로 시작하면("식각 20분 후 …") 접두사를 또 붙이지 않는다
+  return m.label.startsWith(proc) ? m.label : `${proc} · ${m.label}`;
 }
 function rawOf(name, row) {
   const key = name === "oxid_thickness_spec_gap" ? "thickness" : name;
@@ -48,8 +51,8 @@ function evaluate(row, pred) {
   const risk = METROLOGY.every((k) => row[k] !== null && row[k] !== undefined && row[k] >= PARAMS[k].q80);
   if (risk) {
     out.push({ level: "warn", title: "식각 후 남은 막 두께 리스크존",
-      body: "2·3단계와 최종 남은 막 두께가 모두 상위 20% 구간입니다. 식각 조건 보정을 검토하세요.",
-      evidence: "세 값이 모두 상위 20%인 웨이퍼 37장 중 54.1%가 불량" });
+      body: "식각 20·30·40분 잔막 두께가 모두 상위 20% 구간입니다. 식각 조건 보정을 검토하세요.",
+      evidence: "세 값이 모두 상위 20%인 웨이퍼 37장 중 54.1%가 불량(교란 Lot 25 포함 기준)" });
   }
   const u = Q.target_ucl;
   if (pred > u.ucl3) out.push({ level: "crit", title: "예측 불량 칩 수 관리 상한(3σ) 초과", body: `예측 ${pred.toFixed(0)}개 > 상한 ${u.ucl3.toFixed(0)}개`, evidence: `전체 평균 ${u.mean}개, 표준편차 ${u.sd}` });

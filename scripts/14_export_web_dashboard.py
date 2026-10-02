@@ -41,25 +41,27 @@ REAL_DIE_COUNT = 533
 OXIDE_LSL_NM = 700.0
 LINE_CD_SPEC = (25.0, 55.0)
 
-# 공정 순서(물리적 흐름)와 모델이 실제로 쓰는 22개 피처의 소속 — 비전공자용 라벨 포함
+# 공정 순서(물리적 흐름)와 모델이 실제로 쓰는 22개 피처의 소속 — 비전공자용 라벨 포함.
+# 라벨과 단위는 과제 변수정의서(260320_청년 AI·BigData아카데미 변수정의서, B반 반도체) 기준.
+# 예: Thin Film 1~4 = "Etching 실시 10/20/30/40분 후 Thin Film 두께 [nm]".
 PROCESSES = [
     {"id": "oxidation", "name": "산화", "desc": "웨이퍼 표면에 절연막(산화막)을 키우는 공정",
      "params": [("Temp_OXid", "산화 온도", "°C"), ("ppm", "가스 농도", "ppm"),
                 ("thickness", "산화막 두께", "nm")]},
     {"id": "coat", "name": "감광액 도포", "desc": "빛에 반응하는 감광액을 얇게 바르고 굽는 공정",
-     "params": [("resist_target", "감광액 두께 목표비", ""), ("N2_HMDS", "접착제 처리 질소 유량", ""),
-                ("temp_HMDS", "접착제 처리 온도", "°C"), ("spin3", "도포 회전 속도(3단계)", "rpm"),
-                ("photoresist_bake", "감광액 굽는 시간", ""), ("temp_softbake", "굽는 온도", "°C")]},
+     "params": [("resist_target", "레지스트 균일도", ""), ("N2_HMDS", "HMDS N2 투여량", "ppm"),
+                ("temp_HMDS", "HMDS 처리 온도", "°C"), ("spin3", "도포 회전 속도(3단계)", "rpm"),
+                ("photoresist_bake", "감광액 투여량", "ml"), ("temp_softbake", "레지스트 흡착 온도", "°C")]},
     {"id": "litho", "name": "노광", "desc": "빛으로 회로 패턴을 새기는 공정",
      "params": [("Line_CD", "회로 선폭", "nm"), ("Resolution", "해상도", ""),
-                ("Energy_Exposure", "빛 에너지", "")]},
+                ("Energy_Exposure", "노광 에너지", "mJ/cm²")]},
     {"id": "etch", "name": "식각", "desc": "패턴대로 막을 깎아내는 공정 — 결함에 가장 큰 영향",
-     "params": [("Thin F2", "2단계 후 남은 막 두께", "Å"), ("Thin F3", "3단계 후 남은 막 두께", "Å"),
-                ("Thin F4", "최종 남은 막 두께", "Å"), ("Temp_Etching", "식각 온도", "°C"),
-                ("Source_Power", "플라즈마 출력", ""), ("Selectivity", "선택비", "")]},
+     "params": [("Thin F2", "식각 20분 후 잔막 두께", "nm"), ("Thin F3", "식각 30분 후 잔막 두께", "nm"),
+                ("Thin F4", "식각 40분 후 잔막 두께", "nm"), ("Temp_Etching", "식각 온도", "°C"),
+                ("Source_Power", "플라즈마 출력", "W"), ("Selectivity", "선택비", "")]},
     {"id": "implant", "name": "이온주입", "desc": "불순물 이온을 넣어 전기적 성질을 만드는 공정",
-     "params": [("Flux60s", "주입량 (60초 구간)", ""), ("Flux90s", "주입량 (90초 구간)", ""),
-                ("input_Energy", "주입 에너지", ""), ("Temp_implantation", "주입 온도", "°C")]},
+     "params": [("Flux60s", "60초간 이온 주입량", ""), ("Flux90s", "90초간 이온 주입량", ""),
+                ("input_Energy", "주입 플라즈마 에너지", ""), ("Temp_implantation", "주입 온도", "°C")]},
     {"id": "inspect", "name": "검사", "desc": "완성된 칩의 불량 여부를 판정",
      "params": []},
 ]
@@ -272,7 +274,7 @@ def main() -> None:
     }
     # 규격이 없는 식각 잔막 — 불량률이 0%인 하위 20% 구간 경계를 '잠정 관리 상한'으로 둔 참고치
     f2 = df["Thin F2"]
-    cap["Thin F2"] = {"label": "2단계 후 남은 막 두께", "unit": "Å", "has_spec": False,
+    cap["Thin F2"] = {"label": "식각 20분 후 잔막 두께", "unit": "nm", "has_spec": False,
                       "spec_source": f"공식 규격 없음 — 불량률이 {param_meta['Thin F2']['defect_rate_high']}%로 뛰는 "
                                      "상위 20% 구간의 경계(q80)를 잠정 상한으로 사용",
                       **capability(f2, None, float(f2.quantile(0.8)))}
