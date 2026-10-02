@@ -42,6 +42,8 @@ python scripts/10_run_all_hypotheses_h1_h13.py   # 가설 H1~H13 전체 검증
 python scripts/11_final_preprocessing_pipeline.py
 python scripts/12_final_modeling_pipeline.py
 python scripts/13_model_interpretation_shap.py
+python scripts/14_export_web_dashboard.py          # 정적 대시보드용 JSON 재생성
+python scripts/15_control_window_robustness.py    # 관리구간 강건성 재검증
 ```
 
 ## 4. 전체 API 명세
